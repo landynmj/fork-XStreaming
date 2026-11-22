@@ -37,6 +37,20 @@ target 'XStreaming' do
       # :ccache_enabled => true
     )
     __apply_Xcode_12_5_M1_post_install_workaround(installer)
+
+    # Newer Xcode/libc++ removed std::unary_function etc. that RN 0.72's
+    # boost/folly still use; re-enable them. Also lift ancient pod deployment targets.
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |bc|
+        defs = bc.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || ['$(inherited)']
+        defs = [defs] if defs.is_a?(String)
+        defs << '_LIBCPP_ENABLE_CXX17_REMOVED_UNARY_BINARY_FUNCTION'
+        bc.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs
+        if bc.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 13.0
+          bc.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+        end
+      end
+    end
   end
 
 end

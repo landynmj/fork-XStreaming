@@ -21,6 +21,12 @@ jobs:
           done
           xcodebuild -version
 
+      - name: Ensure iOS platform is installed for this Xcode
+        run: |
+          xcodebuild -showsdks
+          xcrun simctl list runtimes | grep -q "iOS $(xcrun --sdk iphoneos --show-sdk-version)" \
+            || xcodebuild -downloadPlatform iOS
+
       - uses: actions/setup-node@v4
         with:
           node-version: 18
@@ -48,8 +54,11 @@ jobs:
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             build > xcodebuild.log 2>&1 || {
-              echo "::group::Errors"; grep -E "error:|fatal error|failed" xcodebuild.log | sort -u | head -80; echo "::endgroup::"
-              tail -60 xcodebuild.log; exit 1; }
+              echo "===== ERRORS (with context) ====="
+              grep -n -B6 -A4 -E "(error|fatal error):" xcodebuild.log | grep -vE "Disabling previews|deployment target" | head -200
+              echo "===== FAILED COMMANDS ====="
+              sed -n '/The following build commands failed/,$p' xcodebuild.log
+              exit 1; }
           tail -5 xcodebuild.log
           test -f build/Build/Products/Release-iphoneos/XStreaming.app/XStreaming
 
